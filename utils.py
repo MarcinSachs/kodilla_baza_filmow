@@ -7,34 +7,52 @@ def change_release_date_format(movies_df):
         movies_df['release_date'])
 
 
-def load_movies_data():
+def load_movies_data(filename="tmdb_movies.csv"):
     """
     Load movies data from a CSV file into a pandas DataFrame.
 
+    Args:
+        filename (str): The name of the CSV file to load.
+
     Returns:
-    pd.DataFrame: A DataFrame containing the movies data.
+        pd.DataFrame: A DataFrame containing the movies data, or None if an error occurred.
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        pd.errors.EmptyDataError: If the file is empty.
     """
     try:
-        movies_df = pd.read_csv("tmdb_movies.csv")
+        movies_df = pd.read_csv(filename)
         change_release_date_format(movies_df)
         return movies_df
+    except FileNotFoundError as e:
+        raise FileNotFoundError from e  # Ponownie zgłoś wyjątek
+    except pd.errors.EmptyDataError as e:
+        raise pd.errors.EmptyDataError from e  # Ponownie zgłoś wyjątek
     except Exception as e:
-        print(f"An error occurred while loading the data: {e}")
         return None
 
 
-def load_genres_data():
+def load_genres_data(filename="tmdb_genres.csv"):
     """
     Load genres data from a CSV file into a pandas DataFrame.
 
+    Args:
+        filename (str): The name of the CSV file to load.
+
     Returns:
-    pd.DataFrame: A DataFrame containing the genres data.
+        pd.DataFrame: A DataFrame containing the genres data, or None if an error occurred.
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        pd.errors.EmptyDataError: If the file is empty.
     """
     try:
-        genres_df = pd.read_csv("tmdb_genres.csv")
+        genres_df = pd.read_csv(filename)
         return genres_df
+    except FileNotFoundError as e:
+        raise FileNotFoundError from e  # Ponownie zgłoś wyjątek
+    except pd.errors.EmptyDataError as e:
+        raise pd.errors.EmptyDataError from e  # Ponownie zgłoś wyjątek
     except Exception as e:
-        print(f"An error occurred while loading the data: {e}")
         return None
 
 
@@ -49,15 +67,18 @@ def get_top_rated_movies(movies_df, top_n=10):
     Returns:
     pd.DataFrame: A DataFrame containing the top N rated movies.
     """
-    if movies_df is None:
-        print("Movies DataFrame is None.")
-        return None
+    if movies_df is None or movies_df.empty:
+        return pd.DataFrame()  # Zwróć pusty DataFrame, jeśli wejściowy jest pusty
+
     Q3 = movies_df['vote_count'].quantile(0.75)
 
     popular_movies = movies_df[movies_df['vote_count'] > Q3]
     top_n_movies = popular_movies.sort_values(
         by='vote_average', ascending=False).head(top_n)
-    return top_n_movies.reset_index()
+
+    if popular_movies.empty:
+        return pd.DataFrame()
+    return top_n_movies.reset_index(drop=True)
 
 
 def get_movies_year_range(movies_df, start_year, end_year):
@@ -102,17 +123,17 @@ def prepare_data_for_chart(movies_df, start_year, end_year):
         print("Movies DataFrame is None.")
         return None
     movies_df = get_movies_year_range(movies_df, start_year, end_year)
-    movies_df['release_date'] = pd.DatetimeIndex(
-        movies_df['release_date']).year
-    movies_df = movies_df.groupby('release_date').agg({
+    # Dodaj kolumnę release_year
+    movies_df['release_year'] = movies_df['release_date'].dt.year
+    movies_df = movies_df.groupby('release_year').agg({
         'revenue': 'mean',
         'budget': 'mean'
     }).reset_index()
 
     # Select relevant columns
-    viz_df = movies_df[['release_date', 'revenue', 'budget']]
+    viz_df = movies_df[['release_year', 'revenue', 'budget']]
 
-    return viz_df.reset_index()
+    return viz_df.reset_index(drop=True)
 
 
 def create_chart(movies_df, start_year, end_year):
