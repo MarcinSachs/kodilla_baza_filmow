@@ -82,6 +82,10 @@ def get_movies_year_range(movies_df, start_year, end_year):
     return movies_in_range.reset_index()
 
 
+def million(x, pos):
+    return '{:2.1f}M'.format(x*1e-6)
+
+
 def prepare_data_for_chart(movies_df, start_year, end_year):
     """
     Prepare movies data for visualization by aggregating average revenue and budget per year.
@@ -129,13 +133,55 @@ def create_chart(movies_df, start_year, end_year):
     fig, ax = plt.subplots()
     ax.plot(viz_df['release_date'], viz_df['budget'],
             label='Budżet', color='red')
+    formatter = plt.FuncFormatter(million)
+    ax.yaxis.set_major_formatter(formatter)
     ax.bar(viz_df['release_date'], viz_df['revenue'],
            color='blue', label='Przychód')
     ax.set_xticks(viz_df['release_date'])
     ax.set_title(
         f'Średni przychód i budżet filmu w latach {start_year}-{end_year}')
-    ax.set_xlabel('Rok')
-    ax.set_ylabel('Budżet')
-    ax.legend()
-    plt.grid(True)
+
+    plt.grid(False)
+    plt.subplots_adjust(right=0.75)
+    ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1))  # Outside of plot
+    plt.show()
+
+# map genre_id in movies_df to genres in genres_df
+
+
+def join_genres(movies_df, genres_df):
+    genres_df = genres_df[['genres']]
+    return movies_df.join(genres_df, on='genre_id', how='inner').rename(columns={'genres': 'genre'})
+
+
+def get_top_genre(movies_df):
+    if movies_df is None:
+        print("Movies DataFrame is None.")
+        return None
+    top_genre = [movies_df['genre'].value_counts().idxmax(),
+                 movies_df['genre'].value_counts().max()]
+    return top_genre
+
+
+def get_longest_average_runtime_genre(movies_df):
+    if movies_df is None:
+        print("Movies DataFrame is None.")
+        return None
+    average_runtime_by_genre = movies_df.groupby('genre')['runtime'].mean()
+    longest_runtime_genre = average_runtime_by_genre.idxmax()
+    return longest_runtime_genre
+
+
+def create_genre_runtime_histogram(movies_df, genre_name):
+    if movies_df is None:
+        print("Movies DataFrame is None.")
+        return None
+    genre_movies = movies_df[movies_df['genre'] == genre_name]
+
+    plt.hist(genre_movies['runtime'], bins=10, color='blue', edgecolor='black')
+    plt.title(
+        f'Histogram średniego czasu trwania filmów gatunku: {genre_name}')
+    plt.xlabel('Czas trwania (minuty)')
+    plt.ylabel('Liczba filmów')
+    plt.grid(axis='y', alpha=0.75)
     plt.show()
